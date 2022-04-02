@@ -1,4 +1,5 @@
-loading = document.getElementById("loading");
+let loading = document.getElementById("loading");
+let cash = document.getElementById("cash");
 
 let firstTimestamp, previousTimestamp;
 let stop = false;
@@ -28,22 +29,57 @@ function pause() {
     }
 }
 
-const ms = 1 / 1000;
-let rate = 10 * ms;
+const sec = 1000; // ms
+
+const game0 = {
+    cash: 0,
+    rate: 5 / sec,
+    rate2: 0.1 / sec,
+    chippers: 0,
+}
+
+let game = { ...game0 }
+
+function take(n) {
+    n = Math.min(n, loading.value);
+    loading.value -= n;
+    game.cash += n;
+    return n;
+}
 
 // dt in milliseconds
 function tick(dt) {
-    loading.value += rate * dt;
+    loading.value += game.rate * dt;
+    game.rate += game.rate2;
+
+    take(game.chippers);
+
+    if (game.cash) {
+        cash.textContent = game.cash.toFixed();
+    }
 
     if (loading.value >= loading.max) {
-        gameover()
+        gameOver()
     }
 }
 
-function gameover() {
+function gameOver() {
     console.log("Game over");
     loading.value = 0;
+    game = { ...game0 }
     location.reload(true)
+}
+
+function unload() {
+    game.cash += loading.value;
+    loading.value = 0;
+}
+
+function buyChipper() {
+    let cost = 100;
+    if (game.cash < cost) { return }
+    game.cash -= cost;
+    game.chippers += 1;
 }
 
 window.requestAnimationFrame(step);
