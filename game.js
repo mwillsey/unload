@@ -126,9 +126,9 @@ class Game {
 
     gameOver() {
         // paused = true;
-        // let time = (window.performance.now() - this.startTime) / sec;
-        // alert(`Game over! You made it ${time.toFixed()} seconds; final speed ${(game.rate * sec).toFixed()}% per second.`);
-        // game = new Game();
+        let time = (window.performance.now() - this.startTime) / sec;
+        alert(`Game over! You made it ${time.toFixed()} seconds; final speed ${(game.rate * sec).toFixed()}% per second.`);
+        game = new Game();
     }
 
     /** @param {number} amt */
