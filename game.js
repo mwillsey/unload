@@ -6,6 +6,17 @@ let panel = document.getElementById("panel");
 
 let paused = false;
 
+// let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// let oscillator = audioCtx.createOscillator();
+// oscillator.type = 'square';
+// oscillator.connect(audioCtx.destination);
+// oscillator.start();
+// function playNote(value) {
+//     let exp = value / 100 * 3;
+//     oscillator.frequency.value = 220 * 2 ** exp;
+// }
+
+
 /** @type Game */
 let game;
 
@@ -24,8 +35,10 @@ function assert(cond) {
 function pause() {
     if (paused) {
         paused = false;
+        // oscillator.start()
     } else {
         paused = true;
+        // oscillator.stop()
     }
 }
 
@@ -54,6 +67,7 @@ class Game {
 
         this.startTime = window.performance.now();
         this.prevTimestamp = this.startTime;
+        this.elapsed = 0;
 
         this.value = 0;
         this.cash = 0;
@@ -68,6 +82,9 @@ class Game {
         };
 
         for (let b in this.buttons) {
+            if (this.buttons[b].label) {
+                panel.append(this.buttons[b].label);
+            }
             panel.append(this.buttons[b].button);
         }
     }
@@ -76,13 +93,13 @@ class Game {
     unload(n) {
         n = Math.min(n, this.value);
         this.value -= n;
-        // this.cash += n;
         return n;
     }
 
     tick(timestamp) {
         let dt = timestamp - this.prevTimestamp;
         this.prevTimestamp = timestamp;
+        this.elapsed = timestamp - this.startTime;
 
         if (paused) {
             return
@@ -92,6 +109,8 @@ class Game {
         this.cash += this.rate * dt;
 
         this.rate += this.rate2 * dt;
+
+        // playNote(this.value);
 
         for (let b in this.buttons) {
             this.buttons[b].tick(dt);
@@ -106,9 +125,10 @@ class Game {
     }
 
     gameOver() {
-        let time = (window.performance.now() - this.startTime) / sec;
-        alert(`Game over! You made it ${time.toFixed()} seconds; final speed ${(game.rate * sec).toFixed()}% per second.`);
-        game = new Game();
+        // paused = true;
+        // let time = (window.performance.now() - this.startTime) / sec;
+        // alert(`Game over! You made it ${time.toFixed()} seconds; final speed ${(game.rate * sec).toFixed()}% per second.`);
+        // game = new Game();
     }
 
     /** @param {number} amt */
@@ -124,7 +144,7 @@ class Game {
 }
 
 class Button {
-    constructor() {
+    constructor(label = false) {
         let name = this.constructor.name;
 
         this.button = document.createElement("button");
@@ -132,13 +152,21 @@ class Button {
         this.button.onclick = () => this.buy();
         this.button.style.opacity = "0";
 
+        // if (label) {
+        //     this.label = document.createElement("label");
+        //     this.button.textContent = name;
+        //     this.button.onclick = () => this.buy();
+        //     this.button.style.opacity = "0";
+        // }
+
         this.hidden = true;
+        this.unhideTime = 0;
         this.qty = 0;
         this.cost = 0;
     }
 
     unhide() {
-        return game.cash >= this.cost
+        return game.elapsed >= this.unhideTime
     }
 
     /** @param {number} dt */
@@ -153,17 +181,17 @@ class Button {
     buy() {
         if (game.spend(this.cost)) {
             this.qty += 1;
+            this.onbuy()
         }
     }
+
+    onbuy() { }
 }
 
 class Unload extends Button {
     constructor() {
         super()
-    }
-
-    unhide() {
-        return game.value >= 30;
+        this.unhideTime = 1 * sec;
     }
 
     buy() {
@@ -175,6 +203,7 @@ class Unload extends Button {
 class AutoUnloader extends Button {
     constructor() {
         super()
+        this.unhideTime = 6 * sec;
         this.cost = 100;
 
         this.version = 0;
@@ -185,11 +214,12 @@ class AutoUnloader extends Button {
 
         this.names = [
             "AutoUnloader",
+            "AutoUnloader 3G",
             "AutoUnloader X",
             "AutoUnloader XS",
-            "AutoUnloader XS Pro",
-            "AutoUnloader XS Pro Max",
-            "AutoUnloader XS Pro Max Air",
+            "AutoUnloader Pro",
+            "AutoUnloader Pro Max",
+            "AutoUnloader Studio",
         ];
         this.name = this.names[0];
     }
@@ -204,6 +234,7 @@ class AutoUnloader extends Button {
         this.name = this.names[this.version];
         this.cost *= 2;
         this.chipTime *= .66;
+        console.log(`Chipping every ${this.chipTime} ms`)
     }
 
     tick(dt) {
@@ -221,6 +252,7 @@ class Upgrade extends Button {
     constructor() {
         super()
         this.cost = 1000;
+        this.unhideTime = 20 * sec;
     }
 
     tick(dt) {
@@ -233,8 +265,7 @@ class Upgrade extends Button {
         }
     }
 
-    buy() {
-        super.buy();
+    onbuy() {
         game.buttons.auto.upgrade();
         this.cost *= 2;
     }
