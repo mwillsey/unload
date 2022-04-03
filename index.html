@@ -6,21 +6,48 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
     <title>Loading...</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            /* prevent tap to zoom */
+            touch-action: manipulation;
+            margin: auto;
+            padding: 10px;
+            max-width: 400px;
+        }
+
+        #loading {
+            display: block;
+            margin: auto;
+            height: 30px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        button {
+            width: 100%;
+            height: 8vh;
+            margin: 1vh 0;
+            transition: opacity 1s;
+        }
+
+        #loading-label {
+            display: block;
+            text-align: center;
+            font-size: larger;
+        }
+    </style>
 </head>
 
 <body>
     <script defer src="game.js"></script>
 
-    <div id="debug-pane" style="margin: 10px">
+    <!-- <div id="debug-pane">
         <button onclick="pause()">Pause</button>
-    </div>
+    </div> -->
 
     <label id="loading-label" for="loading">Loading...</label>
     <progress id="loading" max="100" value="0"> </progress>
 
-    <div>
-        Cash %: <span id="cash"></span>
-    </div>
     <div id="panel">
     </div>
 </body>

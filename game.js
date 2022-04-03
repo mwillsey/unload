@@ -2,19 +2,16 @@
 
 let loading = /**@type HTMLProgressElement */ (document.getElementById("loading"));
 let loadingLabel = document.getElementById("loading-label");
-let cash = document.getElementById("cash");
 let panel = document.getElementById("panel");
 
-let firstTimestamp, previousTimestamp;
 let paused = false;
 
+/** @type Game */
 let game;
 
 const sec = 1000; // ms
 
-/**
- * @param {boolean} cond
- */
+/** @param {boolean} cond */
 function assert(cond) {
     if (!cond) {
         paused = true;
@@ -24,31 +21,30 @@ function assert(cond) {
     }
 }
 
-/**
- * @param {number} timestamp
- */
-function step(timestamp) {
-    let dt = 0;
-    if (firstTimestamp === undefined) {
-        firstTimestamp = timestamp;
-        console.log("First timestamp", timestamp);
-    } else {
-        dt = timestamp - previousTimestamp;
-    }
-    game.tick(dt)
-    previousTimestamp = timestamp;
-    if (!paused) {
-        window.requestAnimationFrame(step);
-    }
-}
-
 function pause() {
     if (paused) {
         paused = false;
-        previousTimestamp = window.performance.now();
-        window.requestAnimationFrame(step);
     } else {
         paused = true;
+    }
+}
+
+document.body.onkeydown = function (event) {
+    let pick;
+    if (event.key == "1") {
+        pick = 0;
+    } else if (event.key == "2") {
+        pick = 1;
+    } else if (event.key == "3") {
+        pick = 2;
+    } else if (event.key == "4") {
+        pick = 3;
+    } else if (event.key == "p") {
+        pause()
+    }
+    let buttons = Object.values(game.buttons);
+    if (pick !== undefined && pick < buttons.length) {
+        buttons[pick].buy()
     }
 }
 
@@ -57,68 +53,65 @@ class Game {
         loading.value = 0;
 
         this.startTime = window.performance.now();
+        this.prevTimestamp = this.startTime;
 
-        this.cash = 1000;
-        this.rate = 25 / sec;
-        this.rate2 = 1 / sec / sec;
+        this.value = 0;
+        this.cash = 0;
+        this.rate = 20 / sec;
+        this.rate2 = 1.2 / sec / sec;
 
         panel.innerHTML = '';
-        this.sections = [
-            new Unload(),
-            new Chipper(),
-            new Slower(),
-        ];
+        this.buttons = {
+            unload: new Unload(),
+            auto: new AutoUnloader(),
+            upgrade: new Upgrade(),
+        };
 
-        this.sections.forEach(section => {
-            if (section.button) {
-                panel.append(section.button)
-            }
-        })
+        for (let b in this.buttons) {
+            panel.append(this.buttons[b].button);
+        }
     }
 
-    /**
-     * @param {number} n
-     */
+    /** @param {number} n */
     unload(n) {
-        n = Math.min(n, loading.value);
-        loading.value -= n;
-        this.cash += n;
+        n = Math.min(n, this.value);
+        this.value -= n;
+        // this.cash += n;
         return n;
     }
 
-    // dt in milliseconds
-    /**
-     * @param {number} dt
-     */
-    tick(dt) {
-        loading.value += this.rate * dt;
+    tick(timestamp) {
+        let dt = timestamp - this.prevTimestamp;
+        this.prevTimestamp = timestamp;
+
+        if (paused) {
+            return
+        }
+
+        this.value += this.rate * dt;
+        this.cash += this.rate * dt;
+
         this.rate += this.rate2 * dt;
 
-        this.sections.forEach(section => {
-            section.tick(dt);
-        })
-
-        if (this.cash) {
-            cash.textContent = this.cash.toFixed();
+        for (let b in this.buttons) {
+            this.buttons[b].tick(dt);
         }
-        loadingLabel.textContent = '';
-        // loadingLabel.textContent = `Loading ${(this.rate * sec).toFixed()}% / second...`;
 
-        if (loading.value >= loading.max) {
+        loadingLabel.textContent = `${this.cash.toFixed()}%`;
+
+        loading.value = this.value;
+        if (this.value >= loading.max) {
             this.gameOver()
         }
     }
 
     gameOver() {
         let time = (window.performance.now() - this.startTime) / sec;
-        alert(`Game over! You made it: ${time}s, ${game.rate * sec}%/s`);
-        location.reload()
+        alert(`Game over! You made it ${time.toFixed()} seconds; final speed ${(game.rate * sec).toFixed()}% per second.`);
         game = new Game();
     }
 
-    /**
-     * @param {number} amt
-     */
+    /** @param {number} amt */
     spend(amt) {
         assert(typeof amt == 'number')
         if (this.cash >= amt) {
@@ -136,20 +129,30 @@ class Button {
 
         this.button = document.createElement("button");
         this.button.textContent = name;
-        this.button.onclick = () => this.buy(1);
+        this.button.onclick = () => this.buy();
+        this.button.style.opacity = "0";
 
+        this.hidden = true;
         this.qty = 0;
         this.cost = 0;
     }
 
-    /**
-     * @param {number} dt
-     */
-    tick(dt) { }
+    unhide() {
+        return game.cash >= this.cost
+    }
 
-    buy(n = 1) {
-        if (game.spend(this.cost * n)) {
-            this.qty += n;
+    /** @param {number} dt */
+    tick(dt) {
+        if (this.hidden && this.unhide()) {
+            this.hidden = false;
+            this.button.style.opacity = "1";
+        }
+        this.button.disabled = game.cash < this.cost;
+    }
+
+    buy() {
+        if (game.spend(this.cost)) {
+            this.qty += 1;
         }
     }
 }
@@ -159,50 +162,94 @@ class Unload extends Button {
         super()
     }
 
-    buy(n) {
-        super.buy(n);
+    unhide() {
+        return game.value >= 30;
+    }
+
+    buy() {
+        super.buy();
         game.unload(Infinity);
     }
 }
 
-class Chipper extends Button {
+class AutoUnloader extends Button {
     constructor() {
         super()
         this.cost = 100;
 
+        this.version = 0;
+
         this.sinceChip = 0;
         this.chipTime = 1 * sec;
         this.chipAmount = 1;
+
+        this.names = [
+            "AutoUnloader",
+            "AutoUnloader X",
+            "AutoUnloader XS",
+            "AutoUnloader XS Pro",
+            "AutoUnloader XS Pro Max",
+            "AutoUnloader XS Pro Max Air",
+        ];
+        this.name = this.names[0];
+    }
+
+    canUpgrade() {
+        return this.version < this.names.length - 1;
+    }
+
+    upgrade() {
+        this.version += 1;
+        assert(this.version < this.names.length);
+        this.name = this.names[this.version];
+        this.cost *= 2;
+        this.chipTime *= .66;
     }
 
     tick(dt) {
-        this.button.textContent = `Buy Chipper (${this.qty} - ${this.cost}%)`;
+        super.tick(dt);
+        this.button.textContent = `${this.cost}% - Buy ${this.name} (${this.qty})`
         this.sinceChip += dt;
-        if (this.sinceChip > this.chipTime) {
-            this.sinceChip = 0;
-            game.unload(this.qty);
+        while (this.sinceChip >= this.chipTime) {
+            this.sinceChip -= this.chipTime;
+            game.unload(this.qty * this.chipAmount);
         }
     }
 }
 
-class Slower extends Button {
+class Upgrade extends Button {
     constructor() {
         super()
-        this.cost = 50;
-        this.slow = 1 / sec;
+        this.cost = 1000;
     }
 
     tick(dt) {
-        this.button.textContent = `Slow (${this.cost}%)`;
+        super.tick(dt);
+        if (game.buttons.auto.canUpgrade()) {
+            this.button.textContent = `${this.cost}% - Upgrade Autoloaders`;
+        } else {
+            this.button.disabled = true;
+            this.button.textContent = "Unloaders maxed out!"
+        }
     }
 
-    buy(n) {
-        super.buy(n);
-        game.rate = Math.max(0, game.rate - this.slow);
+    buy() {
+        super.buy();
+        game.buttons.auto.upgrade();
+        this.cost *= 2;
     }
 }
 
+// now actually start things
+
 game = new Game();
+
+/** @param {number} timestamp */
+function step(timestamp) {
+    game.tick(timestamp);
+    window.requestAnimationFrame(step);
+}
+
 window.requestAnimationFrame(step);
 
 
