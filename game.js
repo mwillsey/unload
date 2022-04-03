@@ -58,19 +58,20 @@ class Game {
 
         this.startTime = window.performance.now();
 
-        this.cash = 0;
-        this.rate = 15 / sec;
-        this.rate2 = 0.5 / sec / sec;
+        this.cash = 1000;
+        this.rate = 25 / sec;
+        this.rate2 = 1 / sec / sec;
 
         panel.innerHTML = '';
         this.sections = [
             new Unload(),
             new Chipper(),
+            new Slower(),
         ];
 
         this.sections.forEach(section => {
-            if (section.div) {
-                panel.append(section.div)
+            if (section.button) {
+                panel.append(section.button)
             }
         })
     }
@@ -100,7 +101,8 @@ class Game {
         if (this.cash) {
             cash.textContent = this.cash.toFixed();
         }
-        loadingLabel.textContent = `Loading ${(this.rate * sec).toFixed()}% / second...`;
+        loadingLabel.textContent = '';
+        // loadingLabel.textContent = `Loading ${(this.rate * sec).toFixed()}% / second...`;
 
         if (loading.value >= loading.max) {
             this.gameOver()
@@ -128,12 +130,13 @@ class Game {
     }
 }
 
-class Section {
+class Button {
     constructor() {
-        let name = this.constructor.name.toLowerCase();
+        let name = this.constructor.name;
 
-        this.div = document.createElement("div");
-        this.div.classList.add(name);
+        this.button = document.createElement("button");
+        this.button.textContent = name;
+        this.button.onclick = () => this.buy(1);
 
         this.qty = 0;
         this.cost = 0;
@@ -151,41 +154,27 @@ class Section {
     }
 }
 
-class Unload extends Section {
+class Unload extends Button {
     constructor() {
         super()
-
-        this.button = document.createElement("button");
-        this.button.textContent = "Unload";
-        this.button.onclick = () => this.unload();
-        this.div.append(this.button);
     }
 
-    unload() {
-        console.log("unload");
+    buy(n) {
+        super.buy(n);
         game.unload(Infinity);
     }
 }
 
-class Chipper extends Section {
+class Chipper extends Button {
     constructor() {
         super()
-
         this.cost = 100;
-        this.qty = 0;
 
         this.sinceChip = 0;
         this.chipTime = 1 * sec;
         this.chipAmount = 1;
-
-        this.button = document.createElement("button");
-        this.button.onclick = () => this.buy(1);
-        this.div.append(this.button);
     }
 
-    /**
-     * @param {number} dt
-     */
     tick(dt) {
         this.button.textContent = `Buy Chipper (${this.qty} - ${this.cost}%)`;
         this.sinceChip += dt;
@@ -193,6 +182,23 @@ class Chipper extends Section {
             this.sinceChip = 0;
             game.unload(this.qty);
         }
+    }
+}
+
+class Slower extends Button {
+    constructor() {
+        super()
+        this.cost = 50;
+        this.slow = 1 / sec;
+    }
+
+    tick(dt) {
+        this.button.textContent = `Slow (${this.cost}%)`;
+    }
+
+    buy(n) {
+        super.buy(n);
+        game.rate = Math.max(0, game.rate - this.slow);
     }
 }
 
