@@ -56,6 +56,8 @@ class Game {
     constructor() {
         loading.value = 0;
 
+        this.startTime = window.performance.now();
+
         this.cash = 0;
         this.rate = 15 / sec;
         this.rate2 = 0.5 / sec / sec;
@@ -101,8 +103,15 @@ class Game {
         loadingLabel.textContent = `Loading ${(this.rate * sec).toFixed()}% / second...`;
 
         if (loading.value >= loading.max) {
-            gameOver()
+            this.gameOver()
         }
+    }
+
+    gameOver() {
+        let time = (window.performance.now() - this.startTime) / sec;
+        alert(`Game over! You made it: ${time}s, ${game.rate * sec}%/s`);
+        location.reload()
+        game = new Game();
     }
 
     /**
@@ -117,12 +126,6 @@ class Game {
             return false;
         }
     }
-}
-
-function gameOver() {
-    console.log("Game over");
-    game = new Game();
-    location.reload()
 }
 
 class Section {
