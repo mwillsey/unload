@@ -1,3 +1,16 @@
 body {
     touch-action: manipulation;
 }
+
+#loading {
+    display: block;
+    margin: auto;
+    height: 30px;
+    width: 100%;
+    max-width: 500px;
+}
+
+button {
+    height: 8vh;
+    margin: 1vh;
+}
